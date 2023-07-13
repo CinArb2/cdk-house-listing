@@ -23,6 +23,9 @@
       "./node_modules/@types"
     ]
   },
+  "include": [
+    "./lib/*.ts"
+  ],
   "exclude": [
     "node_modules",
     "cdk.out"
