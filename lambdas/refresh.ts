@@ -10,7 +10,7 @@ const TABLE_NAME = process.env.TABLE_NAME || '';
 // Create DynamoDB document client
 const db = new AWS.DynamoDB.DocumentClient();
 
-export const handler = async ( ): Promise<any> => {
+export const handler = async (): Promise<any> => {
 
   const params = {
     TableName: TABLE_NAME
@@ -38,10 +38,14 @@ export const handler = async ( ): Promise<any> => {
 
     const missingHouseListings = filteredHousesLatest.filter(({ _source }: { _source: any }) => {
       const frPropertyId = _source.listing.fr_property_id;
-      return !dataDb?.some((houseDb) => houseDb.getDataValue('fr_property_id') === frPropertyId);
+      return !dataDb?.some((houseDb) => houseDb.fr_property_id === frPropertyId);
     })
 
-    const missingHouseListingsParam = missingHouseListings.map((el: any) => {
+    if (missingHouseListings.length === 0) {
+      return { statusCode: 200, body: JSON.stringify("nothing to update!") }
+    }
+
+    const missingHouseListingsParam: Array<Object> | [] = missingHouseListings.map((el: any) => {
       const houseSource = el._source.listing
       return {
         PutRequest: {
@@ -79,34 +83,32 @@ export const handler = async ( ): Promise<any> => {
         }
       }
     })
-    let responseDbBatch = []
-    function chunkArray(array: Array<Object>, chunkSize: number) {
-      const chunks = [];
+
+    async function chunkArray(array: Array<Object>, chunkSize: number) {
+      let chunk: Array<Object> = [];
       let index = 0;
+      let responseDbBatch: any = []
 
       while (index < array.length) {
-        chunks.push(array.slice(index, index + chunkSize));
+        chunk = array.slice(index, index + chunkSize);
+
+        const paramBatch = {
+          RequestItems: {
+            [TABLE_NAME]: chunk
+          }
+        };
+
+        const responseDbBatchtest = await db.batchWrite(paramBatch).promise()
+        responseDbBatch.push(responseDbBatchtest)
         index += chunkSize;
       }
 
-      return chunks;
+      return responseDbBatch;
     }
 
-    const chunkedArray = chunkArray(missingHouseListingsParam, 25);
+    const chunkedArray = await chunkArray(missingHouseListingsParam, 25);
 
-    for (const chunk of chunkedArray) {
-      const paramBatch = {
-        RequestItems: {
-          [TABLE_NAME]: chunk
-        }
-      };
-
-      const responseDbBatchtest = await db.batchWrite(paramBatch).promise()
-      console.log(responseDbBatchtest)
-      responseDbBatch.push(responseDbBatchtest)
-    }
-
-    return { statusCode: 200, body: JSON.stringify(responseDbBatch) };
+    return { statusCode: 200, body: JSON.stringify(chunkedArray) };
   } catch (error) {
     return { statusCode: 500, error: JSON.stringify(error) };
   }
