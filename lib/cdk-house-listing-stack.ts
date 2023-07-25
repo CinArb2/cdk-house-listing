@@ -39,13 +39,23 @@ export class CdkHouseListingStack extends Stack {
       logRetention: RetentionDays.ONE_WEEK
     }
     // Create a Lambda function for each of the CRUD operations
+    //get all listings houses
     const getAllLambda = new NodejsFunction(this, 'getAllItemsFunction', {
       entry: join(__dirname, '/../lambdas/get-all.ts'),
       ...nodeJsFunctionProps,
     });
 
-    // Grant the Lambda function read access to the DynamoDB table
+    //refresh
+    const refreshLambda = new NodejsFunction(this, 'refreshLambda', {
+      entry: join(__dirname, '/../lambdas/refresh.ts'),
+      ...nodeJsFunctionProps,
+    });
+
+    // Grant the getAllLambda function read access to the DynamoDB table
     dynamoTable.grantReadWriteData(getAllLambda);
+
+    // Grant the refreshLambda function read access to the DynamoDB table
+    dynamoTable.grantReadWriteData(refreshLambda);
 
     // Integrate the Lambda functions with the API Gateway resource
     const getAllIntegration = new LambdaIntegration(getAllLambda);
