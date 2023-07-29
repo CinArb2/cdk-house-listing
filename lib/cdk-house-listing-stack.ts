@@ -4,9 +4,10 @@ import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction, NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { join } from 'path'
-import { IResource, LambdaIntegration, MockIntegration, PassthroughBehavior, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
-
+import * as targets from 'aws-cdk-lib/aws-events-targets'
+import * as events from 'aws-cdk-lib/aws-events'
 
 export class CdkHouseListingStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -50,6 +51,14 @@ export class CdkHouseListingStack extends Stack {
       entry: join(__dirname, '/../lambdas/refresh.ts'),
       ...nodeJsFunctionProps,
     });
+
+    // interface CronOptions
+    const eventRule = new events.Rule(this, 'scheduleRule', {
+      // This schedule starts at 5:00am UTC every day (00:00 GMT -05:00-Bogota)
+      schedule: events.Schedule.cron({ minute: '00', hour: '5' }),
+    });
+
+    eventRule.addTarget(new targets.LambdaFunction(refreshLambda))
 
     // Grant the getAllLambda function read access to the DynamoDB table
     dynamoTable.grantReadWriteData(getAllLambda);

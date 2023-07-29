@@ -1,9 +1,11 @@
 import * as AWS from 'aws-sdk';
 import axios from 'axios';
-import * as body from './body.json'
 import _ from 'lodash'
 import moment from 'moment'
 import { v4 as uuidv4 } from 'uuid'
+
+//TODO: implement
+import * as body from './body.json'
 
 const TABLE_NAME = process.env.TABLE_NAME || '';
 
@@ -36,6 +38,7 @@ export const handler = async (): Promise<any> => {
     const responseDb = await db.scan(params).promise();
     const dataDb = responseDb.Items
 
+    //check for new entries
     const missingHouseListings = filteredHousesLatest.filter(({ _source }: { _source: any }) => {
       const frPropertyId = _source.listing.fr_property_id;
       return !dataDb?.some((houseDb) => houseDb.fr_property_id === frPropertyId);
